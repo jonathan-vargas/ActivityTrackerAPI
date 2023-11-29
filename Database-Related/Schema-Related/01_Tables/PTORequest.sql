@@ -13,6 +13,8 @@ CREATE TABLE [dbo].[PTORequest](
 	[StartedDate] [date] NOT NULL,
 	[FinishedDate] [date] NOT NULL,
 	[PTOStatusId] [int] NOT NULL,
+	[EmployeeId] [int] NOT NULL,
+	[TeamLeadEmployeeId] [int] NOT NULL,
  CONSTRAINT [PK_PTORequest] PRIMARY KEY CLUSTERED 
 (
 	[PTORequestId] ASC
