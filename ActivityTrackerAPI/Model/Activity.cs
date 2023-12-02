@@ -8,6 +8,6 @@ public class Activity
 
     public DateTime FinishedDate { get; set; }
 
-    public string? Description { get; set; }
+    public string Description { get; set; } = default!;
     public int EmployeeId { get; set; }
 }

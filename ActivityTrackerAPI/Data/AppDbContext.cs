@@ -5,19 +5,22 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ActivityTrackerAPI.Model;
 
-namespace ActivityTrackerAPI.Data
+namespace ActivityTrackerAPI.Data;
+
+public class AppDbContext : DbContext
 {
-    public class AppDbContext : DbContext
+    public AppDbContext (DbContextOptions<AppDbContext> options)
+        : base(options)
     {
-        public AppDbContext (DbContextOptions<AppDbContext> options)
-            : base(options)
-        {
-        }
-
-        public DbSet<ActivityTrackerAPI.Model.Activity> Activity { get; set; } = default!;
-
-        public DbSet<ActivityTrackerAPI.Model.Employee>? Employee { get; set; }
-
-        public DbSet<ActivityTrackerAPI.Model.Error>? Error { get; set; }
     }
+
+    public DbSet<ActivityTrackerAPI.Model.Activity> Activity { get; set; } = default!;
+
+    public DbSet<ActivityTrackerAPI.Model.Employee> Employee { get; set; } = default!;
+
+    public DbSet<ActivityTrackerAPI.Model.Team> Team { get; set; } = default!;
+
+    public DbSet<ActivityTrackerAPI.Model.Error> Error { get; set; } = default!;
+
+    public DbSet<ActivityTrackerAPI.Model.PtoRequest> PtoRequest { get; set; } = default!;
 }

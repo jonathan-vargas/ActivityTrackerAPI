@@ -3,7 +3,10 @@ using ActivityTrackerAPI.Model;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Logging;
 using System;
+using System.Diagnostics;
+using Activity = ActivityTrackerAPI.Model.Activity;
 
 namespace ActivityTrackerAPI.Repository;
 
@@ -11,24 +14,42 @@ public class ActivityRepository : IActivityRepository
 {
     private readonly AppDbContext _appDbContext;
     private readonly IErrorRepository _errorRepository;
+    private readonly ILogger<ActivityRepository> _logger;
 
-    public ActivityRepository(AppDbContext appDbContext, IErrorRepository errorRepository)
+    public ActivityRepository(AppDbContext appDbContext, IErrorRepository errorRepository, ILogger<ActivityRepository> logger)
     {
         this._appDbContext = appDbContext;
         this._errorRepository = errorRepository;
+        this._logger = logger;
     }
-    public async Task<List<Activity>> GetActivitiesByEmployeeId(int employeeId)
+    public async Task<List<Activity>?> GetActivities()
     {
         if (_appDbContext?.Activity == null)
-            return new List<Activity>();
+            return null;
+
+        return await _appDbContext.Activity.ToListAsync();
+    }
+    public async Task<Activity?> GetActivityByActivityId(int activityId)
+    {
+        if (_appDbContext?.Activity == null)
+            return null;
+
+        return await _appDbContext.Activity.FindAsync(activityId);
+    }
+
+
+    public async Task<List<Activity>?> GetActivitiesByEmployeeId(int employeeId)
+    {
+        if (_appDbContext?.Activity == null)
+            return null;
 
         return await _appDbContext.Activity.Where(x => x.EmployeeId == employeeId).ToListAsync();
     }
 
-    public async Task<List<Activity>> GetActivitiesByTeamId(int teamId)
+    public async Task<List<Activity>?> GetActivitiesByTeamId(int teamId)
     {
         if (_appDbContext?.Activity == null)
-            return new List<Activity>();
+            return null;
 
         var errorCodeId = 0;
 
@@ -36,44 +57,50 @@ public class ActivityRepository : IActivityRepository
                                                 .FromSqlInterpolated($"EXECUTE dbo.spActivityGetByTeamId @TeamId={teamId}, @ErrorCodeId={errorCodeId} OUTPUT")
                                                 .ToListAsync();
 
-        if(errorCodeId != 0)
+        if (errorCodeId != 0)
         {
             Error errorDetail = await _errorRepository.GetErrorById(errorCodeId);
-            throw new Exception(errorDetail.Description);
+            _logger.LogError(errorDetail.Description);
+            return null;
         }
 
         return activitiesByTeam;
     }
-    public async Task<Activity> AddActivity(Activity activity)
+    public async Task<Activity?> AddActivity(Activity activity)
     {
         _appDbContext.Activity.Add(activity);
         await _appDbContext.SaveChangesAsync();
 
-        return (await _appDbContext.Activity.FindAsync(activity.ActivityId) == null) ? new Activity() : activity;
+        return (await _appDbContext.Activity.FindAsync(activity.ActivityId) == null) ? null : activity;
     }
 
-    public async Task<Activity?> DeleteActivity(int activityId)
+    public async Task<bool> DeleteActivity(int activityId)
     {
-        if (_appDbContext?.Activity?.FindAsync(activityId) == null)
-        {
-            return null;
-        }
         Activity? activityToDelete = await _appDbContext.Activity.FindAsync(activityId);
 
         if (activityToDelete == null)
-            return null;
+        {
+            return false;
+        }
 
-        _appDbContext.Activity.Remove(activityToDelete);
-        await _appDbContext.SaveChangesAsync();
+        try
+        {
+            _appDbContext.Activity.Remove(activityToDelete);
+            await _appDbContext.SaveChangesAsync();
+        }
+        catch (Exception)
+        {
+            return false;
+        }
         
-        return new Activity();
+        return true;
     }
 
-    public async Task<Activity?> UpdateActivity(Activity activity)
+    public async Task<bool> UpdateActivity(Activity activity)
     {
         if (activity.ActivityId == 0)
         {
-            return null;
+            return false;
         }
 
         _appDbContext.Entry(activity).State = EntityState.Modified;
@@ -86,7 +113,7 @@ public class ActivityRepository : IActivityRepository
         {
             if (!ActivityExists(activity.ActivityId))
             {
-                return null;
+                return false;
             }
             else
             {
@@ -94,7 +121,7 @@ public class ActivityRepository : IActivityRepository
             }
         }
 
-        return activity;
+        return true;
     }
     private bool ActivityExists(int id)
     {

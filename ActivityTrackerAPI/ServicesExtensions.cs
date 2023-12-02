@@ -10,4 +10,12 @@ public static class ServicesExtensions
         services.AddScoped<IActivityRepository, ActivityRepository>();
         services.AddScoped<IErrorRepository, ErrorRepository>();
     }
+
+    public static void ConfigureLoggingConsole(this IServiceCollection services)
+    {
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole();     
+        });
+    }
 }
