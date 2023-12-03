@@ -26,7 +26,7 @@ public class EmployeeController : ControllerBase
         return employeeList == null ? NoContent() : employeeList;
     }
     // GET: api/Employee/5
-    [HttpGet("{id}")]
+    [HttpGet("{employeeId}")]
     public async Task<ActionResult<Employee>> GetEmployee(int employeeId)
     {
         var employee = await _employeeRepository.GetEmployeeByEmployeeId(employeeId);

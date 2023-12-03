@@ -1,11 +1,6 @@
 ﻿using ActivityTrackerAPI.Data;
 using ActivityTrackerAPI.Model;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Diagnostics;
 using Activity = ActivityTrackerAPI.Model.Activity;
 
 namespace ActivityTrackerAPI.Repository;
@@ -111,7 +106,7 @@ public class ActivityRepository : IActivityRepository
         }
         catch (DbUpdateConcurrencyException)
         {
-            if (!ActivityExists(activity.ActivityId))
+            if (!IsActivityExists(activity.ActivityId))
             {
                 return false;
             }
@@ -123,8 +118,8 @@ public class ActivityRepository : IActivityRepository
 
         return true;
     }
-    private bool ActivityExists(int id)
+    public bool IsActivityExists(int activityId)
     {
-        return (_appDbContext.Activity?.Any(e => e.ActivityId == id)).GetValueOrDefault();
+        return (_appDbContext.Activity?.Any(e => e.ActivityId == activityId)).GetValueOrDefault();
     }
 }

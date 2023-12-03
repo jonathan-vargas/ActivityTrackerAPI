@@ -12,12 +12,10 @@ namespace ActivityTrackerAPI.Repository
     {
         private readonly AppDbContext _appDbContext;
         private readonly IReportParametersValidator _reportParametersValidator;
-        private readonly ILogger _logger;
-        public PtoRequestReportsRepository(AppDbContext appDbContext, IReportParametersValidator reportParametersValidator, ILogger logger) 
+        public PtoRequestReportsRepository(AppDbContext appDbContext, IReportParametersValidator reportParametersValidator)
         {
             _appDbContext = appDbContext;
             _reportParametersValidator = reportParametersValidator;
-            _logger = logger;
         }
         public List<PtoRequestReport>? GetActivityReport(Dictionary<string, DateTime> dateParameters, int employeeIdParameter, int teamIdParameter)
         {

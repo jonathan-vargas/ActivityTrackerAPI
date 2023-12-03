@@ -11,5 +11,5 @@ public interface IPtoRequestRepository
     Task<bool> ProcessPtoRequest(int ptoRequestId, int ptoRequestStatusId);
     Task<List<PtoRequest>?> GetPtoRequestByEmployeeId(int employeeId);
     List<PtoRequest>? GetPtoRequestByTeamId(int teamId);
-    Task<PtoRequest?> GetPtoRequestByPtoRequestId(int pTORequestId);
+    Task<PtoRequest?> GetPtoRequestByPtoRequestId(int ptoRequestId);
 }

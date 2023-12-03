@@ -12,4 +12,5 @@ public interface IActivityRepository
     Task<bool> UpdateActivity(Activity activity);
     Task<bool> DeleteActivity(int activityId);
     Task<Activity?> GetActivityByActivityId(int activityId);
+    bool IsActivityExists(int activityId);
 }

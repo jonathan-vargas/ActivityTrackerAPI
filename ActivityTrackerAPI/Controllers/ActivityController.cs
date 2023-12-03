@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using ActivityTrackerAPI.Model;
 using ActivityTrackerAPI.Repository;
+using ActivityTrackerAPI.Validation;
+using ActivityTrackerAPI.Utility;
 
 namespace ActivityTrackerAPI.Controllers;
 
@@ -10,9 +12,13 @@ namespace ActivityTrackerAPI.Controllers;
 public class ActivityController : ControllerBase
 {
     private readonly IActivityRepository _activityRepository;
-    public ActivityController(IActivityRepository activityRepository)
+    private readonly IActivityValidator _activityValidator;
+    private readonly IEmployeeValidator _employeeValidator;
+    public ActivityController(IActivityRepository activityRepository, IActivityValidator activityValidator, IEmployeeValidator employeeValidator)
     {
         _activityRepository = activityRepository;
+        _activityValidator = activityValidator;
+        _employeeValidator = employeeValidator;
     }
 
     // GET: api/Activity
@@ -41,42 +47,51 @@ public class ActivityController : ControllerBase
         return activity;
     }
     // GET: api/Activity/5
-    [HttpGet("Employee/{employeeId}")]
+    [HttpGet("employee/{employeeId}")]
     public async Task<ActionResult<IEnumerable<Activity>>> GetActivityByEmployeeId(int employeeId)
     {
-        var activity = await _activityRepository.GetActivitiesByEmployeeId(employeeId);
+        if (!await _employeeValidator.IsEmployeeIdValid(employeeId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized);
+        }
 
-        if (activity == null)
+        List<Activity>? activities;
+        if(await _employeeValidator.IsEmployeeTeamLead(employeeId))
+        {
+            activities = await _activityRepository.GetActivitiesByTeamId(employeeId);
+        }
+        else
+        {
+            activities = await _activityRepository.GetActivitiesByEmployeeId(employeeId);
+        }
+
+        if (activities == null)
         {
             return NotFound();
         }
 
-        return activity;
-    }
-
-    // GET: api/Activity/5
-    [HttpGet("Team/{employeeId}")]
-    public async Task<ActionResult<IEnumerable<Activity>>> GetActivityByTeamId(int teamId)
-    {
-        var activity = await _activityRepository.GetActivitiesByTeamId(teamId);
-
-        if (activity == null)
-        {
-            return NotFound();
-        }
-
-        return activity;
+        return activities;
     }
     // PUT: api/Activity/5
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-    [HttpPut("{id}")]
-    public async Task<IActionResult> PutActivity(int activityId, Activity activity)
-    {        
-        if (activityId != activity.ActivityId)
+    [HttpPut("{employeeId}/{activityId}")]
+    public async Task<IActionResult> PutActivity(int employeeId, int activityId, Activity activity)
+    {
+        if(await _employeeValidator.IsEmployeeTeamLead(employeeId))
         {
-            return BadRequest();
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
         }
 
+        if (!_activityValidator.IsActivityUpdateValid(activity, employeeId) || activityId != activity.ActivityId)
+        {
+            return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
+        }
+
+        if (!_activityValidator.IsInsertOrUpdateAllowed(activity, employeeId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
+        }
+       
         bool response;
         try
         {
@@ -91,31 +106,50 @@ public class ActivityController : ControllerBase
 
     }
 
-    // POST: api/Activity
+    // POST: api/Activity/5/
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-    [HttpPost]
-    public async Task<ActionResult<Activity>> PostActivity(Activity activity)
+    [HttpPost("{employeeId}")]
+    public async Task<ActionResult<Activity>> PostActivity(int employeeId, Activity activity)
     {
-        var insertedActivity = await _activityRepository.AddActivity(activity);
+        if (await _employeeValidator.IsEmployeeTeamLead(employeeId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
+        }
 
+        if (!_activityValidator.IsInsertOrUpdateAllowed(activity, employeeId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
+        }
+
+        if (!_activityValidator.IsActivityInsertValid(activity, employeeId))
+        {
+            return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
+        }
+
+        Activity? insertedActivity = await _activityRepository.AddActivity(activity);
         if (insertedActivity == null)
             return StatusCode(StatusCodes.Status503ServiceUnavailable);
 
         return CreatedAtAction("GetActivity", new { id = activity.ActivityId }, activity);
     }
 
-    // DELETE: api/Activity/5
-    [HttpDelete("{activityId}")]
-    public async Task<IActionResult> DeleteActivity(int activityId)
+    // DELETE: api/Activity/5/5
+    [HttpDelete("{employeeId}/{activityId}")]
+    public async Task<IActionResult> DeleteActivity(int employeeId, int activityId)
     {
-        bool isDeleted = await _activityRepository.DeleteActivity(activityId);
-
-        if (!isDeleted)
+        if(!await _activityValidator.IsDeleteAllowed(activityId, employeeId))
         {
-            return NotFound();
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
         }
 
-        return NoContent();
+        if (!_activityValidator.IsActivityDeleteValid(activityId))
+        {
+            return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
+        }
+
+        bool isDeleted = await _activityRepository.DeleteActivity(activityId);
+
+        return (!isDeleted) ? NotFound() : NoContent();
     }
 
 }

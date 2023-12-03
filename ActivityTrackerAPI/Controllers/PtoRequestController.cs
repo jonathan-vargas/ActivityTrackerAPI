@@ -93,8 +93,8 @@ public class PtoRequestController : ControllerBase
         return NoContent();
     }
     // PUT: api/PTORequest/5
-    [HttpPut("{ptoRequestId}")]
-    public async Task<ActionResult<PtoRequest>> ProcessPtoRequest(int ptoRequestId, PtoRequestDTO ptoRequestDTO)
+    [HttpPatch("{ptoRequestId}")]
+    public async Task<ActionResult<PtoRequest>> PatchProcessPtoRequest(int ptoRequestId, PtoRequestDTO ptoRequestDTO)
     {
         if (ptoRequestDTO?.PtoStatusId is null or <= 0)
         {

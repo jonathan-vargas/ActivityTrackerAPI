@@ -3,7 +3,6 @@ using ActivityTrackerAPI.Model;
 using ActivityTrackerAPI.Utility;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
-using ActivityTrackerAPI.Utility;
 
 namespace ActivityTrackerAPI.Repository;
 
@@ -17,19 +16,19 @@ public class PtoRequestRepository : IPtoRequestRepository
         this._appDbContext = appDBContext;
         this._logger = logger;
     }
-    public async Task<PtoRequest?> AddPtoRequest(PtoRequest pTORequest)
+    public async Task<PtoRequest?> AddPtoRequest(PtoRequest ptoRequest)
     {
         if(_appDbContext?.PtoRequest == null)
         {
             return null;
         }
-        _appDbContext.PtoRequest.Add(pTORequest);
+        _appDbContext.PtoRequest.Add(ptoRequest);
         await _appDbContext.SaveChangesAsync();
-        return (await _appDbContext.PtoRequest.FindAsync(pTORequest.PtoRequestId) == null) ? null : pTORequest;
+        return (await _appDbContext.PtoRequest.FindAsync(ptoRequest.PtoRequestId) == null) ? null : ptoRequest;
     }
-    public async Task<bool> DeletePtoRequest(int pTORequestId)
+    public async Task<bool> DeletePtoRequest(int ptoRequestId)
     {
-       PtoRequest? pTORequestToDelete = await _appDbContext.PtoRequest.FindAsync(pTORequestId);
+       PtoRequest? pTORequestToDelete = await _appDbContext.PtoRequest.FindAsync(ptoRequestId);
 
         if (pTORequestToDelete == null)
         {
@@ -111,7 +110,7 @@ public class PtoRequestRepository : IPtoRequestRepository
             return false;
         }
 
-        if (pTORequestStatusId != StatusCodes.PTO_REQUEST_STATUS_APPROVED && pTORequestStatusId != StatusCodes.PTO_REQUEST_STATUS_CANCELED)
+        if (pTORequestStatusId != Utility.AppStatusCodes.PTO_REQUEST_STATUS_APPROVED && pTORequestStatusId != Utility.AppStatusCodes.PTO_REQUEST_STATUS_CANCELED)
         {
             return false;
         }

@@ -56,4 +56,9 @@ public class EmployeeRepository : IEmployeeRepository
 
         return employeesByTeamLeadEmployeeId.ToList<Employee>();
     }
+
+    public bool IsEmployeeExists(int employeeId)
+    {
+        return (_appDbContext.Employee?.Any(e => e.EmployeeId == employeeId)).GetValueOrDefault();
+    }
 }
