@@ -12,7 +12,7 @@ INSERT INTO [dbo].[Employee]
            ('Pedro'
            ,'Vasquez'
            ,'Dominguez'
-           ,'pedro.vasquez@gmail.com'
+           ,'jon.vargas.c+pedroVasquez@gmail.com'
            ,0
            ,1)
 GO
@@ -28,7 +28,7 @@ INSERT INTO [dbo].[Employee]
            ('Alejandro'
            ,'Garcia'
            ,'Rodriguez'
-           ,'alejandro.garcia@gmail.com'
+           ,'jon.vargas.c+alejandroGarcia@gmail.com'
            ,0
            ,1)
 GO
@@ -45,7 +45,7 @@ INSERT INTO [dbo].[Employee]
            ('Sofia'
            ,'Martinez'
            ,'Lopez'
-           ,'sofia.martinez@gmail.com'
+           ,'jon.vargas.c+sofiaMartinez@gmail.com'
            ,0
            ,1)
 GO
@@ -62,7 +62,7 @@ INSERT INTO [dbo].[Employee]
            ('Mateo'
            ,'Perez'
            ,'Hernandez'
-           ,'mateo.perez@gmail.com'
+           ,'jon.vargas.c+mateoPerez@gmail.com'
            ,0
            ,2)
 GO
@@ -79,7 +79,7 @@ INSERT INTO [dbo].[Employee]
            ('Isabella'
            ,'Torres'
            ,'Ramirez'
-           ,'isabella.torres@gmail.com'
+           ,'jon.vargas.c+isabellaTorres@gmail.com'
            ,0
            ,2)
 GO
@@ -95,7 +95,7 @@ INSERT INTO [dbo].[Employee]
            ('Diego'
            ,'Rodriguez'
            ,'Garcia'
-           ,'diego.rodriguez@gmail.com'
+           ,'jon.vargas.c+diegoRodriguez@gmail.com'
            ,0
            ,2)
 GO
@@ -111,7 +111,7 @@ INSERT INTO [dbo].[Employee]
            ('Valentina'
            ,'López'
            ,'Martínez'
-           ,'valentina.lopez@gmail.com'
+           ,'jon.vargas.c+valentinaLopez@gmail.com'
            ,0
            ,3)
 GO
@@ -127,7 +127,7 @@ INSERT INTO [dbo].[Employee]
            ('Lucas'
            ,'Hernandez'
            ,'Perez'
-           ,'lucas.hernandez@gmail.com'
+           ,'jon.vargas.c+lucasHernandez@gmail.com'
            ,0
            ,3)
 GO
@@ -143,7 +143,7 @@ INSERT INTO [dbo].[Employee]
            ('Camila'
            ,'Ramirez'
            ,'Torres'
-           ,'camila.ramirez@gmail.com'
+           ,'jon.vargas.c+camilaRamirez@gmail.com'
            ,0
            ,3)
 GO

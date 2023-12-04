@@ -3,6 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using ActivityTrackerAPI.Model;
 using ActivityTrackerAPI.Repository;
 using ActivityTrackerAPI.DTO;
+using ActivityTrackerAPI.Validation;
+using ActivityTrackerAPI.Utility;
+using System.Diagnostics;
+using Microsoft.Extensions.Options;
 
 namespace ActivityTrackerAPI.Controllers;
 
@@ -11,10 +15,21 @@ namespace ActivityTrackerAPI.Controllers;
 public class PtoRequestController : ControllerBase
 {
     private readonly IPtoRequestRepository _ptoRequestRepository;
-
-    public PtoRequestController(IPtoRequestRepository ptoRequestRepository)
+    private readonly IEmployeeValidator _employeeValidator;
+    private readonly ITeamRepository _teamRepository;
+    private readonly IPtoRequestValidator _ptoRequestValidator;
+    private readonly EmailConfiguration _emailConfiguration;
+    private readonly IEmployeeRepository _employeeRepository;
+    private readonly ILogger<PtoRequest> _logger;
+    public PtoRequestController(IPtoRequestRepository ptoRequestRepository, IEmployeeValidator employeeValidator, ITeamRepository teamRepository, IPtoRequestValidator ptoRequestValidator, IOptions<EmailConfiguration> emailConfiguration, IEmployeeRepository employeeRepository, ILogger<PtoRequest> logger)
     {
-        this._ptoRequestRepository = ptoRequestRepository;
+        _ptoRequestRepository = ptoRequestRepository;
+        _employeeValidator = employeeValidator;
+        _teamRepository = teamRepository;
+        _ptoRequestValidator = ptoRequestValidator;
+        _emailConfiguration = emailConfiguration.Value;
+        _employeeRepository = employeeRepository;
+        _logger = logger;
     }
 
     // GET: api/PTORequest
@@ -26,7 +41,7 @@ public class PtoRequestController : ControllerBase
         return ptoRequests == null ? NotFound() : ptoRequests;
     }
     [HttpGet("{ptoRequestId}")]
-    public async Task<ActionResult<PtoRequest>> GetPtoRequest(int ptoRequestId)
+    public async Task<ActionResult<PtoRequest>> GetPtoRequest(int employeeId, int ptoRequestId)
     {
         var ptoRequest = await _ptoRequestRepository.GetPtoRequestByPtoRequestId(ptoRequestId);
 
@@ -36,28 +51,47 @@ public class PtoRequestController : ControllerBase
     [HttpGet("{employeeId}")]
     public async Task<ActionResult<IEnumerable<PtoRequest>>> GetPtoRequestByEmployeeId(int employeeId)
     {
-        List<PtoRequest>? ptoRequest = await _ptoRequestRepository.GetPtoRequestByEmployeeId(employeeId);
+        if (!await _employeeValidator.IsEmployeeIdValid(employeeId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized);
+        }
 
-        return ptoRequest == null ? NotFound() : ptoRequest;
-    }
+        List<PtoRequest>? ptoRequests;
+        if (await _employeeValidator.IsEmployeeTeamLead(employeeId))
+        {
+            Team? team = await _teamRepository.GetTeamByEmployeeId(employeeId);
+            if(team != null)
+            {
+                ptoRequests = _ptoRequestRepository.GetPtoRequestByTeamId(team.TeamId);
+            }            
+        }
+        else
+        {
+            ptoRequests = await _ptoRequestRepository.GetPtoRequestByEmployeeId(employeeId);
+        }
 
-    [HttpGet("{teamId}")]
-    public ActionResult<IEnumerable<PtoRequest>> GetPtoRequestByTeamId(int teamId)
-    {
-        List<PtoRequest>? ptoRequest = _ptoRequestRepository.GetPtoRequestByTeamId(teamId);
-
-        return ptoRequest == null ? NotFound() : ptoRequest;
+        return ptoRequests == null ? NotFound() : ptoRequests;
     }
     // PUT: api/PTORequest/5
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-    [HttpPut("{ptoRequestId}")]
-    public async Task<IActionResult> PutPtoRequest(int ptoRequestId, PtoRequest ptoRequest)
+    [HttpPut("{employeeId}/{ptoRequestId}")]
+    public async Task<IActionResult> PutPtoRequest(int employeeId, int ptoRequestId, PtoRequest ptoRequest)
     {
-        if (ptoRequestId != ptoRequest.PtoRequestId)
+        if (await _employeeValidator.IsEmployeeTeamLead(employeeId))
         {
-            return BadRequest();
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
         }
 
+        if (!await _ptoRequestValidator.IsPtoRequestUpdateValid(ptoRequest, employeeId) || ptoRequestId != ptoRequest.PtoRequestId)
+        {
+            return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
+        }
+
+        if (!await _ptoRequestValidator.IsInsertOrUpdateAllowed(ptoRequest, employeeId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
+        }
+        
         bool response;
         try
         {
@@ -71,21 +105,51 @@ public class PtoRequestController : ControllerBase
         return (!response) ? NotFound() : Ok();
     }
     // POST: api/PTORequest
-    [HttpPost]
-    public async Task<ActionResult<PtoRequest>> PostPtoRequest(PtoRequest ptoRequest)
+    [HttpPost("{employeeId}")]
+    public async Task<ActionResult<PtoRequest>> PostPtoRequest(int employeeId, PtoRequest ptoRequest)
     {
+        if (await _employeeValidator.IsEmployeeTeamLead(employeeId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
+        }
+
+        if (!await _ptoRequestValidator.IsInsertOrUpdateAllowed(ptoRequest, employeeId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
+        }
+
+        if (!await _ptoRequestValidator.IsPtoRequestInsertValid(ptoRequest, employeeId))
+        {
+            return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
+        }
+
         PtoRequest? insertedPTORequest = await _ptoRequestRepository.AddPtoRequest(ptoRequest);
 
         if (insertedPTORequest == null)
         {
             StatusCode(StatusCodes.Status503ServiceUnavailable);
         }
+        else
+        {
+            setupAndSendEmail(insertedPTORequest, _emailConfiguration, _logger);
+        }
+        
         return CreatedAtAction("GetPTORequest", new { id = ptoRequest.PtoRequestId }, ptoRequest);
     }
     // DELETE: api/PTORequest/5
-    [HttpDelete("{ptoRequestId}")]
-    public async Task<IActionResult> DeletePtoRequest(int ptoRequestId)
+    [HttpDelete("{employeeId}/{ptoRequestId}")]
+    public async Task<IActionResult> DeletePtoRequest(int employeeId, int ptoRequestId)
     {
+        if (!await _ptoRequestValidator.IsDeleteAllowed(ptoRequestId, employeeId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
+        }
+
+        if (!await _ptoRequestValidator.IsPtoRequestDeleteValid(ptoRequestId))
+        {
+            return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
+        }
+
         if (!await _ptoRequestRepository.DeletePtoRequest(ptoRequestId))
         { 
             return NotFound(); 
@@ -93,18 +157,23 @@ public class PtoRequestController : ControllerBase
         return NoContent();
     }
     // PUT: api/PTORequest/5
-    [HttpPatch("{ptoRequestId}")]
-    public async Task<ActionResult<PtoRequest>> PatchProcessPtoRequest(int ptoRequestId, PtoRequestDTO ptoRequestDTO)
+    [HttpPatch("{employeeId}/{ptoRequestId}")]
+    public async Task<ActionResult<PtoRequest>> PatchProcessPtoRequest(int employeeId, int ptoRequestId, PtoRequest ptoRequest)
     {
-        if (ptoRequestDTO?.PtoStatusId is null or <= 0)
+        if (!await _ptoRequestValidator.isPtoRequestProcessValid(ptoRequest, ptoRequestId, employeeId))
         {
-            return BadRequest();
+            return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
+        }
+
+        if (!await _ptoRequestValidator.isPtoRequestProcessAllowed(ptoRequestId, employeeId))
+        {
+            return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
         }
 
         bool response;
         try
         {
-            response = await _ptoRequestRepository.ProcessPtoRequest(ptoRequestId, ptoRequestDTO.PtoStatusId);
+            response = await _ptoRequestRepository.ProcessPtoRequest(ptoRequestId, ptoRequest.PtoStatusId);
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -112,5 +181,30 @@ public class PtoRequestController : ControllerBase
         }
 
         return (!response) ? NotFound() : Ok();
+    }
+
+    private async void setupAndSendEmail(PtoRequest ptoRequest, EmailConfiguration emailConfiguration, ILogger<PtoRequest> _logger)
+    {
+        Employee? employee = await _employeeRepository.GetEmployeeByEmployeeId(ptoRequest.EmployeeId);
+        Team? team = await _teamRepository.GetTeamByEmployeeId(ptoRequest.EmployeeId);
+        if(employee == null && team == null)
+        {
+            return;
+        }
+        Employee? teamLead = await _employeeRepository.GetEmployeeByEmployeeId(team.TeamLeadEmployeeId);
+        if(teamLead == null)
+        {
+            return;
+        }
+
+        EmailContent emailContent = new EmailContent()
+        {
+            From = employee?.Email,
+            To = teamLead.Email,
+            Subject = $"{Parameters.PTO_REQUEST_EMAIL_SUBJECT}:[{employee.Name} {employee.PaternalLastName} {employee.MaternalLastName}",
+            Body = $"{Parameters.PTO_REQUEST_EMAIL_BODY} - {employee.Name} {employee.PaternalLastName} {employee.MaternalLastName} ({employee.EmployeeId})"
+        };
+
+        AppMailSender.SendEmail(emailConfiguration, emailContent, _logger);
     }
 }

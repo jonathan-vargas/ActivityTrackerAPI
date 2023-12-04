@@ -1,5 +1,7 @@
-﻿using ActivityTrackerAPI.Repository;
+﻿using ActivityTrackerAPI.Model;
+using ActivityTrackerAPI.Repository;
 using ActivityTrackerAPI.Validation;
+using System.Configuration;
 
 namespace ActivityTrackerAPI;
 

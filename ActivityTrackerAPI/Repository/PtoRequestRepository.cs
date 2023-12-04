@@ -101,34 +101,29 @@ public class PtoRequestRepository : IPtoRequestRepository
         return pTORequestsByTeamId.ToList<PtoRequest>();
     }
 
-    public async Task<bool> ProcessPtoRequest(int pTORequestId, int pTORequestStatusId)
+    public async Task<bool> ProcessPtoRequest(int ptoRequestId, int ptoRequestStatusId)
     {
-        var pTORequestToProcess = await _appDbContext.PtoRequest.FindAsync(pTORequestId);
+        var pTORequestToProcess = await _appDbContext.PtoRequest.FindAsync(ptoRequestId);
 
         if (pTORequestToProcess == null)
         {
             return false;
         }
-
-        if (pTORequestStatusId != Utility.AppStatusCodes.PTO_REQUEST_STATUS_APPROVED && pTORequestStatusId != Utility.AppStatusCodes.PTO_REQUEST_STATUS_CANCELED)
-        {
-            return false;
-        }
         
-        pTORequestToProcess.PtoStatusId = pTORequestStatusId;
+        pTORequestToProcess.PtoStatusId = ptoRequestStatusId;
         await UpdatePtoRequest(pTORequestToProcess);
 
         return true;
     }
 
-    public async Task<bool> UpdatePtoRequest(PtoRequest pTORequest)
+    public async Task<bool> UpdatePtoRequest(PtoRequest ptoRequest)
     {
-        if (pTORequest.PtoRequestId == 0)
+        if (ptoRequest.PtoRequestId == 0)
         {
             return false;
         }
 
-        _appDbContext.Entry(pTORequest).State = EntityState.Modified;
+        _appDbContext.Entry(ptoRequest).State = EntityState.Modified;
 
         try
         {
@@ -136,7 +131,7 @@ public class PtoRequestRepository : IPtoRequestRepository
         }
         catch (DbUpdateConcurrencyException)
         {
-            if (!PTORequestExists(pTORequest.PtoRequestId))
+            if (!PTORequestExists(ptoRequest.PtoRequestId))
             {
                 return false;
             }
@@ -148,7 +143,14 @@ public class PtoRequestRepository : IPtoRequestRepository
 
         return true;
     }
+    public int? GetPtoRequestDateCollision(DateTime starteDate, DateTime finishedDate, int employeeId)
+    {
+        List<PtoRequest>? dateCollisions = _appDbContext.PtoRequest?
+            .Where(ptoRequest => !(ptoRequest.FinishedDate < starteDate || ptoRequest.StartedDate > finishedDate) && ptoRequest.EmployeeId == employeeId)
+            .ToList();
 
+        return dateCollisions?.Count;
+    }
     private bool PTORequestExists(int id)
     {
         return (_appDbContext.PtoRequest?.Any(e => e.PtoRequestId == id)).GetValueOrDefault();

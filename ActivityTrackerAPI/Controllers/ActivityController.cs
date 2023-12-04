@@ -4,6 +4,7 @@ using ActivityTrackerAPI.Model;
 using ActivityTrackerAPI.Repository;
 using ActivityTrackerAPI.Validation;
 using ActivityTrackerAPI.Utility;
+using Microsoft.Extensions.Options;
 
 namespace ActivityTrackerAPI.Controllers;
 
@@ -14,11 +15,13 @@ public class ActivityController : ControllerBase
     private readonly IActivityRepository _activityRepository;
     private readonly IActivityValidator _activityValidator;
     private readonly IEmployeeValidator _employeeValidator;
-    public ActivityController(IActivityRepository activityRepository, IActivityValidator activityValidator, IEmployeeValidator employeeValidator)
+    private readonly ITeamRepository _teamRepository;
+    public ActivityController(IActivityRepository activityRepository, IActivityValidator activityValidator, IEmployeeValidator employeeValidator, ITeamRepository teamRepository)
     {
         _activityRepository = activityRepository;
         _activityValidator = activityValidator;
         _employeeValidator = employeeValidator;
+        _teamRepository = teamRepository;
     }
 
     // GET: api/Activity
@@ -58,19 +61,18 @@ public class ActivityController : ControllerBase
         List<Activity>? activities;
         if(await _employeeValidator.IsEmployeeTeamLead(employeeId))
         {
-            activities = await _activityRepository.GetActivitiesByTeamId(employeeId);
+            Team? team = await _teamRepository.GetTeamByEmployeeId(employeeId);
+            if (team != null) 
+            {
+                activities = await _activityRepository.GetActivitiesByTeamId(team.TeamId);
+            }
         }
         else
         {
             activities = await _activityRepository.GetActivitiesByEmployeeId(employeeId);
         }
 
-        if (activities == null)
-        {
-            return NotFound();
-        }
-
-        return activities;
+        return activities != null ? activities : NotFound();
     }
     // PUT: api/Activity/5
     // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
