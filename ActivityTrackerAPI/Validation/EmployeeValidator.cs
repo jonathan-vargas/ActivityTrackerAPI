@@ -16,7 +16,7 @@ public class EmployeeValidator : IEmployeeValidator
     public async Task<bool> IsEmployeeTeamLead(int employeeId)
     {
         Team? team = await _teamRepository.GetTeamByEmployeeId(employeeId);
-        if (team != null)
+        if (team != null && team.TeamLeadEmployeeId == employeeId)
         {
             return true;
         }
@@ -26,6 +26,26 @@ public class EmployeeValidator : IEmployeeValidator
     public async Task<bool> IsEmployeeIdValid(int employeeId)
     {
         if(employeeId <= 0 || await _employeeRepository.GetEmployeeByEmployeeId(employeeId) == null)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    public async Task<bool> IsEmployeeAndTeamLeadFromSameTeam(int employeeId, int teamLeadEmployeeId)
+    {
+        Employee? employee = await _employeeRepository.GetEmployeeByEmployeeId(employeeId);
+        if (employee == null)
+            return false;
+
+        Team? team = await _teamRepository.GetTeamByTeamId(employee.TeamId);
+        if(team == null)
+        {
+            return false;
+        }
+
+        if(team.TeamLeadEmployeeId != teamLeadEmployeeId)
         {
             return false;
         }

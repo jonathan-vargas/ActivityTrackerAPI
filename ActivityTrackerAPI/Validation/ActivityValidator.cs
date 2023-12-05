@@ -103,21 +103,11 @@ public class ActivityValidator : IActivityValidator
         }
         DateTime startedDateUTC = activity.StartedDate.ToUniversalTime();
         DateTime finishedDateUTC = activity.FinishedDate.ToUniversalTime();
-        
-        int startedDateYear = startedDateUTC.Year;
-        int startedDateMonth = startedDateUTC.Month;
-        int startedDateDay = startedDateUTC.Day;
-        
-        int finishedDateYear = finishedDateUTC.Year;
-        int finishedDateMonth = finishedDateUTC.Month;
-        int finishedDateDay = finishedDateUTC.Day;
+        DateOnly startedDate = new DateOnly(startedDateUTC.Year, startedDateUTC.Month, startedDateUTC.Day);
+        DateOnly finishedDate = new DateOnly(finishedDateUTC.Year, finishedDateUTC.Month, finishedDateUTC.Day);
+        DateOnly currentDate = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day);
 
-        if (startedDateYear < DateTime.UtcNow.Year ||
-            finishedDateYear < DateTime.UtcNow.Year ||
-            startedDateMonth < DateTime.UtcNow.Month ||
-            finishedDateMonth < DateTime.UtcNow.Month ||
-            startedDateDay < DateTime.UtcNow.Day ||
-            finishedDateDay < DateTime.UtcNow.Day)
+        if (startedDate < currentDate || finishedDate < currentDate)
         {
             return false;
         }

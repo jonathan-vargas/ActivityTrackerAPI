@@ -72,6 +72,14 @@ public class PtoRequestRepository : IPtoRequestRepository
         return await _appDbContext.PtoRequest.FindAsync(ptoRequestId);
     }
 
+    public PtoRequest? GetPtoRequestByPtoRequestIdNoTracking(int ptoRequestId)
+    {
+        if (_appDbContext?.PtoRequest == null)
+            return null;
+
+        return _appDbContext.PtoRequest.AsNoTracking().FirstOrDefault(ptoRequest => ptoRequest.PtoRequestId == ptoRequestId);
+    }
+
     public List<PtoRequest>? GetPtoRequestByTeamId(int teamId)
     {
         if (_appDbContext?.Activity == null || _appDbContext.Team == null)
@@ -146,7 +154,7 @@ public class PtoRequestRepository : IPtoRequestRepository
     public int? GetPtoRequestDateCollision(DateTime starteDate, DateTime finishedDate, int employeeId)
     {
         List<PtoRequest>? dateCollisions = _appDbContext.PtoRequest?
-            .Where(ptoRequest => !(ptoRequest.FinishedDate < starteDate || ptoRequest.StartedDate > finishedDate) && ptoRequest.EmployeeId == employeeId)
+            .Where(ptoRequest => !(ptoRequest.FinishedDate.Date < starteDate.Date || ptoRequest.StartedDate.Date > finishedDate.Date) && ptoRequest.EmployeeId == employeeId)
             .ToList();
 
         return dateCollisions?.Count;

@@ -7,10 +7,11 @@ namespace ActivityTrackerAPI.Repository;
 public class TeamRepository : ITeamRepository
 {
     private readonly AppDbContext _appDbContext;
-    
-    public TeamRepository(AppDbContext appDbContext)
+    private readonly IEmployeeRepository _employeeRepository;
+    public TeamRepository(AppDbContext appDbContext, IEmployeeRepository employeeRepository)
     {
         _appDbContext = appDbContext;
+        _employeeRepository = employeeRepository;
     }
     public async Task<Team?> GetTeamByTeamId(int teamId)
     {
@@ -25,11 +26,19 @@ public class TeamRepository : ITeamRepository
 
     public async Task<Team?> GetTeamByEmployeeId(int employeeId)
     {
+        Employee? employee = await _employeeRepository.GetEmployeeByEmployeeId(employeeId);
+
         if (_appDbContext?.Team == null)
         {
             return null;
         }
-        Team? team = await _appDbContext.Team.FirstOrDefaultAsync(team => team.TeamLeadEmployeeId == employeeId);
+
+        if(employee == null)
+        {
+            return null;
+        }
+
+        Team? team = await GetTeamByTeamId(employee.TeamId);
 
         return team;
     }

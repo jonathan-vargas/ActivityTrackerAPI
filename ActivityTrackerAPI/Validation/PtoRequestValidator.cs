@@ -10,10 +10,12 @@ public class PtoRequestValidator : IPtoRequestValidator
 {
     private readonly IEmployeeValidator _employeeValidator;
     private readonly IPtoRequestRepository _ptoRequestRepository;
-    public PtoRequestValidator(IEmployeeValidator employeeValidator, IPtoRequestRepository ptoRequestRepository)
+    private readonly IEmployeeRepository _employeeRepository;
+    public PtoRequestValidator(IEmployeeValidator employeeValidator, IPtoRequestRepository ptoRequestRepository, IEmployeeRepository employeeRepository)
     {
         _employeeValidator = employeeValidator;
         _ptoRequestRepository = ptoRequestRepository;
+        _employeeRepository = employeeRepository;
     }
 
     public Task<bool> IsGetActionAllowed(int employeeId)
@@ -22,13 +24,36 @@ public class PtoRequestValidator : IPtoRequestValidator
     }
     public async Task<bool> IsPtoRequestInsertValid(PtoRequest ptoRequest, int employeeId)
     {
-        await IsPtoRequestPropertiesValid(ptoRequest, isIncludeIdCheck: false);
-        return false;
+        if (ptoRequest.PtoStatusId <= 0 || ptoRequest.PtoStatusId != AppStatusCodes.PTO_REQUEST_STATUS_PENDING)
+        {
+            return false;
+        }
+
+        if (!await IsPtoRequestPropertiesValid(ptoRequest, isIncludeIdCheck: false)){
+            return false;
+        }
+        return true;
     }
 
     public async Task<bool> IsPtoRequestUpdateValid(PtoRequest ptoRequest, int employeeId)
-    {
-        if(!await IsPtoRequestPropertiesValid(ptoRequest, isIncludeIdCheck: true))
+    {    
+        if (!await IsPtoRequestPropertiesValid(ptoRequest, isIncludeIdCheck: true))
+        {
+            return false;
+        }
+
+        if (ptoRequest.PtoStatusId <= 0 || ptoRequest.PtoStatusId == AppStatusCodes.PTO_REQUEST_STATUS_APPROVED)
+        {
+            return false;
+        }
+
+        PtoRequest? ptoRequestFromDb = _ptoRequestRepository.GetPtoRequestByPtoRequestIdNoTracking(ptoRequest.PtoRequestId);
+        if(ptoRequestFromDb == null)
+        {
+            return false;
+        }
+
+        if(ptoRequestFromDb.PtoStatusId == AppStatusCodes.PTO_REQUEST_STATUS_CANCELED)
         {
             return false;
         }
@@ -44,26 +69,26 @@ public class PtoRequestValidator : IPtoRequestValidator
             return false;
         }
 
-        if (ptoRequest.PtoStatusId != AppStatusCodes.PTO_REQUEST_STATUS_PENDING)
-        {
-            return false;
-        }
-
         return true;
     }
     public async Task<bool> IsInsertOrUpdateAllowed(PtoRequest ptoRequest, int employeeId)
     {
-        if (ptoRequest.PtoStatusId != AppStatusCodes.PTO_REQUEST_STATUS_PENDING)
-        {
-            return false;
-        }
-
         if (!await _employeeValidator.IsEmployeeIdValid(employeeId))
         {
             return false;
         }
 
-        if (!await _employeeValidator.IsEmployeeTeamLead(employeeId))
+        if (await _employeeValidator.IsEmployeeTeamLead(employeeId))
+        {
+            return false;
+        }
+
+        if(ptoRequest.EmployeeId != employeeId)
+        {
+            return false;
+        }
+
+        if(!await _employeeValidator.IsEmployeeAndTeamLeadFromSameTeam(employeeId, ptoRequest.TeamLeadEmployeeId))
         {
             return false;
         }
@@ -93,7 +118,12 @@ public class PtoRequestValidator : IPtoRequestValidator
             return false;
         }
 
-        return false;    
+        if(ptoRequest.PtoStatusId == AppStatusCodes.PTO_REQUEST_STATUS_APPROVED)
+        {
+            return false;
+        }
+
+        return true;    
     }
 
     public async Task<bool> IsPtoRequestIdValid(int ptoRequestId)
@@ -108,22 +138,35 @@ public class PtoRequestValidator : IPtoRequestValidator
 
     public bool IsPtoRequestStatusIdValid(int ptoRequestStatusId)
     {
-        if (ptoRequestStatusId <= 0 || ptoRequestStatusId == AppStatusCodes.PTO_REQUEST_STATUS_PENDING)
+        if (ptoRequestStatusId <= 0 || ptoRequestStatusId == AppStatusCodes.PTO_REQUEST_STATUS_APPROVED)
         {
             return false;
         }
 
         return true;
     }
-    public bool IsDateCollisionExist(DateTime startedDate, DateTime finishedDate, int employeeId)
+    public bool IsDateCollisionExist(DateTime startedDate, DateTime finishedDate, int employeeId, int ptoRequestId)
     {
-        int? collissions = _ptoRequestRepository.GetPtoRequestDateCollision(startedDate, finishedDate, employeeId);
-        if (!collissions.HasValue || collissions > 0)
+        startedDate = startedDate.Date; 
+        finishedDate = finishedDate.Date;
+        PtoRequest? ptoRequest = _ptoRequestRepository.GetPtoRequestByPtoRequestIdNoTracking(ptoRequestId);
+        int? collissions;
+        if(ptoRequest == null)
+        {
+            collissions = _ptoRequestRepository.GetPtoRequestDateCollision(startedDate, finishedDate, employeeId);
+            return collissions > 0;
+        }
+
+        DateTime startedDateFromDb = ptoRequest.StartedDate.Date;
+        DateTime finishedDateFromDb = ptoRequest.FinishedDate.Date;
+        bool isDateUpdated = (startedDate != startedDateFromDb || finishedDate != finishedDateFromDb) && ptoRequestId > 0;
+        collissions = (isDateUpdated)? _ptoRequestRepository.GetPtoRequestDateCollision(startedDate, finishedDate, employeeId): 0;
+        if (!collissions.HasValue)
         {
             return false;
         }
-
-        return true;
+        
+        return collissions > 0;
     }
     public async Task<bool> isPtoRequestProcessValid(PtoRequest ptoRequest, int ptoRequestId, int employeeId)
     {
@@ -186,48 +229,22 @@ public class PtoRequestValidator : IPtoRequestValidator
             return false;
         }
 
-        if (IsDateCollisionExist(ptoRequest.StartedDate, ptoRequest.FinishedDate, ptoRequest.EmployeeId))
-        {
-            return false;
-        }
-
         if (!await _employeeValidator.IsEmployeeIdValid(ptoRequest.TeamLeadEmployeeId) ||
            !await _employeeValidator.IsEmployeeTeamLead(ptoRequest.TeamLeadEmployeeId))
         {
             return false;
         }
 
-        if (!await _employeeValidator.IsEmployeeIdValid(ptoRequest.EmployeeId) ||
-            !await _employeeValidator.IsEmployeeTeamLead(ptoRequest.EmployeeId))
-        {
-            return false;
-        }
-
-        if (ptoRequest.PtoStatusId <= 0 || !IsPtoRequestStatusIdValid(ptoRequest.PtoStatusId))
-        {
-            return false;
-        }
         DateTime startedDateUTC = ptoRequest.StartedDate.ToUniversalTime();
-        DateTime finishedDateUTC = ptoRequest.FinishedDate.ToUniversalTime();
+        DateTime finishedDateUTC = ptoRequest.FinishedDate.ToUniversalTime();        
+        DateOnly startedDate = new DateOnly(startedDateUTC.Year, startedDateUTC.Month, startedDateUTC.Day);
+        DateOnly finishedDate = new DateOnly(finishedDateUTC.Year, finishedDateUTC.Month, finishedDateUTC.Day);
+        DateOnly currentDate = new DateOnly(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day);
 
-        int startedDateYear = startedDateUTC.Year;
-        int startedDateMonth = startedDateUTC.Month;
-        int startedDateDay = startedDateUTC.Day;
-
-        int finishedDateYear = finishedDateUTC.Year;
-        int finishedDateMonth = finishedDateUTC.Month;
-        int finishedDateDay = finishedDateUTC.Day;
-
-        if (startedDateYear <= DateTime.UtcNow.Year ||
-            finishedDateYear <= DateTime.UtcNow.Year ||
-            startedDateMonth <= DateTime.UtcNow.Month ||
-            finishedDateMonth <= DateTime.UtcNow.Month ||
-            startedDateDay <= DateTime.UtcNow.Day ||
-            finishedDateDay <= DateTime.UtcNow.Day)
+        if (startedDate <= currentDate || finishedDate <= currentDate)
         {
             return false;
         }
-
 
         return true;
     }

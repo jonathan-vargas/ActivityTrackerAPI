@@ -59,13 +59,14 @@ public class ActivityController : ControllerBase
         }
 
         List<Activity>? activities;
-        if(await _employeeValidator.IsEmployeeTeamLead(employeeId))
+        Team? team = await _teamRepository.GetTeamByEmployeeId(employeeId);
+        if(team == null)
         {
-            Team? team = await _teamRepository.GetTeamByEmployeeId(employeeId);
-            if (team != null) 
-            {
-                activities = await _activityRepository.GetActivitiesByTeamId(team.TeamId);
-            }
+            return NotFound();
+        }
+        if (await _employeeValidator.IsEmployeeTeamLead(employeeId))
+        {
+            activities = await _activityRepository.GetActivitiesByTeamId(team.TeamId);
         }
         else
         {

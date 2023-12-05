@@ -21,7 +21,8 @@ public class PtoRequestController : ControllerBase
     private readonly EmailConfiguration _emailConfiguration;
     private readonly IEmployeeRepository _employeeRepository;
     private readonly ILogger<PtoRequest> _logger;
-    public PtoRequestController(IPtoRequestRepository ptoRequestRepository, IEmployeeValidator employeeValidator, ITeamRepository teamRepository, IPtoRequestValidator ptoRequestValidator, IOptions<EmailConfiguration> emailConfiguration, IEmployeeRepository employeeRepository, ILogger<PtoRequest> logger)
+    private readonly IAppMailSender _appMailSender;
+    public PtoRequestController(IPtoRequestRepository ptoRequestRepository, IEmployeeValidator employeeValidator, ITeamRepository teamRepository, IPtoRequestValidator ptoRequestValidator, IOptions<EmailConfiguration> emailConfiguration, IEmployeeRepository employeeRepository, ILogger<PtoRequest> logger, IAppMailSender appMailSender)
     {
         _ptoRequestRepository = ptoRequestRepository;
         _employeeValidator = employeeValidator;
@@ -30,6 +31,7 @@ public class PtoRequestController : ControllerBase
         _emailConfiguration = emailConfiguration.Value;
         _employeeRepository = employeeRepository;
         _logger = logger;
+        _appMailSender = appMailSender; 
     }
 
     // GET: api/PTORequest
@@ -39,13 +41,6 @@ public class PtoRequestController : ControllerBase
         var ptoRequests = await _ptoRequestRepository.GetPtoRequest();
 
         return ptoRequests == null ? NotFound() : ptoRequests;
-    }
-    [HttpGet("{ptoRequestId}")]
-    public async Task<ActionResult<PtoRequest>> GetPtoRequest(int employeeId, int ptoRequestId)
-    {
-        var ptoRequest = await _ptoRequestRepository.GetPtoRequestByPtoRequestId(ptoRequestId);
-
-        return ptoRequest == null ? NotFound() : ptoRequest;
     }
     // GET: api/PTORequest/5
     [HttpGet("{employeeId}")]
@@ -57,13 +52,15 @@ public class PtoRequestController : ControllerBase
         }
 
         List<PtoRequest>? ptoRequests;
+        Team? team = await _teamRepository.GetTeamByEmployeeId(employeeId);
+        if(team == null)
+        {
+            return NotFound();
+        }
+
         if (await _employeeValidator.IsEmployeeTeamLead(employeeId))
         {
-            Team? team = await _teamRepository.GetTeamByEmployeeId(employeeId);
-            if(team != null)
-            {
-                ptoRequests = _ptoRequestRepository.GetPtoRequestByTeamId(team.TeamId);
-            }            
+            ptoRequests = _ptoRequestRepository.GetPtoRequestByTeamId(team.TeamId);
         }
         else
         {
@@ -83,6 +80,11 @@ public class PtoRequestController : ControllerBase
         }
 
         if (!await _ptoRequestValidator.IsPtoRequestUpdateValid(ptoRequest, employeeId) || ptoRequestId != ptoRequest.PtoRequestId)
+        {
+            return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
+        }
+
+        if (_ptoRequestValidator.IsDateCollisionExist(ptoRequest.StartedDate, ptoRequest.FinishedDate, employeeId, ptoRequest.PtoRequestId))
         {
             return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
         }
@@ -118,6 +120,11 @@ public class PtoRequestController : ControllerBase
             return StatusCode(StatusCodes.Status401Unauthorized, HttpStatusCodesMessages.HTTP_401_UNAUTHORIZED_MESSAGE);
         }
 
+        if (_ptoRequestValidator.IsDateCollisionExist(ptoRequest.StartedDate, ptoRequest.FinishedDate, employeeId, ptoRequest.PtoRequestId))
+        {
+            return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
+        }
+
         if (!await _ptoRequestValidator.IsPtoRequestInsertValid(ptoRequest, employeeId))
         {
             return BadRequest(HttpStatusCodesMessages.HTTP_400_BAD_REQUEST_MESSAGE);
@@ -131,7 +138,7 @@ public class PtoRequestController : ControllerBase
         }
         else
         {
-            setupAndSendEmail(insertedPTORequest, _emailConfiguration, _logger);
+            SetupAndSendEmail(insertedPTORequest, _emailConfiguration, _logger);
         }
         
         return CreatedAtAction("GetPTORequest", new { id = ptoRequest.PtoRequestId }, ptoRequest);
@@ -183,14 +190,19 @@ public class PtoRequestController : ControllerBase
         return (!response) ? NotFound() : Ok();
     }
 
-    private async void setupAndSendEmail(PtoRequest ptoRequest, EmailConfiguration emailConfiguration, ILogger<PtoRequest> _logger)
+    private async void SetupAndSendEmail(PtoRequest ptoRequest, EmailConfiguration emailConfiguration, ILogger<PtoRequest> _logger)
     {
         Employee? employee = await _employeeRepository.GetEmployeeByEmployeeId(ptoRequest.EmployeeId);
         Team? team = await _teamRepository.GetTeamByEmployeeId(ptoRequest.EmployeeId);
-        if(employee == null && team == null)
+        if(employee == null)
         {
             return;
         }
+        if(team == null)
+        {
+            return;
+        }
+
         Employee? teamLead = await _employeeRepository.GetEmployeeByEmployeeId(team.TeamLeadEmployeeId);
         if(teamLead == null)
         {
@@ -199,12 +211,12 @@ public class PtoRequestController : ControllerBase
 
         EmailContent emailContent = new EmailContent()
         {
-            From = employee?.Email,
+            From = employee.Email,
             To = teamLead.Email,
             Subject = $"{Parameters.PTO_REQUEST_EMAIL_SUBJECT}:[{employee.Name} {employee.PaternalLastName} {employee.MaternalLastName}",
-            Body = $"{Parameters.PTO_REQUEST_EMAIL_BODY} - {employee.Name} {employee.PaternalLastName} {employee.MaternalLastName} ({employee.EmployeeId})"
+            Body = $"{Parameters.PTO_REQUEST_EMAIL_BODY} - {employee.Name} {employee.PaternalLastName} {employee.MaternalLastName} ({employee.EmployeeId}). From {ptoRequest.StartedDate} to {ptoRequest.FinishedDate}"
         };
 
-        AppMailSender.SendEmail(emailConfiguration, emailContent, _logger);
+        _appMailSender.SendEmail(emailConfiguration, emailContent, _logger);
     }
 }

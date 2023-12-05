@@ -12,7 +12,7 @@ INSERT INTO [dbo].[Employee]
            ('Pedro'
            ,'Vasquez'
            ,'Dominguez'
-           ,'jon.vargas.c+pedroVasquez@gmail.com'
+           ,'johndoehesian+PedroVasquez@gmail.com'
            ,0
            ,1)
 GO
@@ -28,11 +28,10 @@ INSERT INTO [dbo].[Employee]
            ('Alejandro'
            ,'Garcia'
            ,'Rodriguez'
-           ,'jon.vargas.c+alejandroGarcia@gmail.com'
+           ,'johndoehesian+AlejandroGarcia@gmail.com'
            ,0
            ,1)
 GO
-
 
 INSERT INTO [dbo].[Employee]
            ([Name]
@@ -45,11 +44,10 @@ INSERT INTO [dbo].[Employee]
            ('Sofia'
            ,'Martinez'
            ,'Lopez'
-           ,'jon.vargas.c+sofiaMartinez@gmail.com'
+           ,'johndoehesian+SofiaMartinez@gmail.com'
            ,0
            ,1)
 GO
-
 
 INSERT INTO [dbo].[Employee]
            ([Name]
@@ -62,11 +60,10 @@ INSERT INTO [dbo].[Employee]
            ('Mateo'
            ,'Perez'
            ,'Hernandez'
-           ,'jon.vargas.c+mateoPerez@gmail.com'
+           ,'johndoehesian+MateoPerez@gmail.com'
            ,0
            ,2)
 GO
-
 
 INSERT INTO [dbo].[Employee]
            ([Name]
@@ -79,7 +76,7 @@ INSERT INTO [dbo].[Employee]
            ('Isabella'
            ,'Torres'
            ,'Ramirez'
-           ,'jon.vargas.c+isabellaTorres@gmail.com'
+           ,'johndoehesian+IsabellaTorres@gmail.com'
            ,0
            ,2)
 GO
@@ -95,7 +92,7 @@ INSERT INTO [dbo].[Employee]
            ('Diego'
            ,'Rodriguez'
            ,'Garcia'
-           ,'jon.vargas.c+diegoRodriguez@gmail.com'
+           ,'johndoehesian+DiegoRodriguez@gmail.com'
            ,0
            ,2)
 GO
@@ -111,7 +108,7 @@ INSERT INTO [dbo].[Employee]
            ('Valentina'
            ,'López'
            ,'Martínez'
-           ,'jon.vargas.c+valentinaLopez@gmail.com'
+           ,'johndoehesian+ValentinaLópez@gmail.com'
            ,0
            ,3)
 GO
@@ -127,7 +124,7 @@ INSERT INTO [dbo].[Employee]
            ('Lucas'
            ,'Hernandez'
            ,'Perez'
-           ,'jon.vargas.c+lucasHernandez@gmail.com'
+           ,'johndoehesian+LucasHernandez@gmail.com'
            ,0
            ,3)
 GO
@@ -143,7 +140,7 @@ INSERT INTO [dbo].[Employee]
            ('Camila'
            ,'Ramirez'
            ,'Torres'
-           ,'jon.vargas.c+camilaRamirez@gmail.com'
+           ,'johndoehesian+CamilaRamirez@gmail.com'
            ,0
            ,3)
 GO

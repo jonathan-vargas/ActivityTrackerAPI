@@ -1,6 +1,6 @@
 ﻿namespace ActivityTrackerAPI.Model;
 
-public class PtoRequestReport : ModelBase
+public class ActivityReport
 {
     public DateTime StartedDate { get; set; }
     public DateTime FinishedDate { get; set; }

@@ -8,39 +8,36 @@ using System.Linq.Expressions;
 
 namespace ActivityTrackerAPI.Repository
 {
-    public class PtoRequestReportsRepository : IPtoRequestReportsRepository
+    public class ActivityReportsRepository : IActivityReportRepository
     {
         private readonly AppDbContext _appDbContext;
-        private readonly IReportParametersValidator _reportParametersValidator;
-        public PtoRequestReportsRepository(AppDbContext appDbContext, IReportParametersValidator reportParametersValidator)
+        public ActivityReportsRepository(AppDbContext appDbContext)
         {
             _appDbContext = appDbContext;
-            _reportParametersValidator = reportParametersValidator;
         }
-        public List<PtoRequestReport>? GetActivityReport(Dictionary<string, DateTime> dateParameters, int employeeIdParameter, int teamIdParameter)
+        public List<ActivityReport>? GetActivityReport(Dictionary<string, DateTime> dateParameters, int employeeIdParameter, int teamIdParameter)
         {
             var activityReport = from activity in _appDbContext.Activity
                                  join employee in _appDbContext.Employee on activity.EmployeeId equals employee.EmployeeId
                                  join team in _appDbContext.Team on employee.TeamId equals team.TeamId
-                                 select new PtoRequestReport
+                                 select new ActivityReport
                                  {
                                      StartedDate = activity.StartedDate,
                                      FinishedDate = activity.FinishedDate,
                                      Description = activity.Description,
-                                     Duration = EF.Functions.DateDiffDay(activity.StartedDate, activity.FinishedDate),
+                                     Duration = EF.Functions.DateDiffDay(activity.StartedDate, activity.FinishedDate) + 1,
                                      EmployeeId = employee.EmployeeId,
                                      TeamId = team.TeamId
                                  };
 
-
             activityReport = ApplyDateRangeFilter(activityReport, dateParameters);
             activityReport = ApplyEmployeeIdFilter(activityReport, employeeIdParameter);
-            activityReport = ApplyTeamIdFilter(activityReport, employeeIdParameter);
+            activityReport = ApplyTeamIdFilter(activityReport, teamIdParameter);
 
             return activityReport.ToList();
         }
 
-        private IQueryable<PtoRequestReport> ApplyEmployeeIdFilter(IQueryable<PtoRequestReport> query, int employeeId)
+        private IQueryable<ActivityReport> ApplyEmployeeIdFilter(IQueryable<ActivityReport> query, int employeeId)
         {
             if(employeeId <= 0)
             {
@@ -48,7 +45,7 @@ namespace ActivityTrackerAPI.Repository
             }
             return query.Where(reportRow => reportRow.EmployeeId == employeeId);
         }        
-        private IQueryable<PtoRequestReport> ApplyTeamIdFilter(IQueryable<PtoRequestReport> query, int teamId)
+        private IQueryable<ActivityReport> ApplyTeamIdFilter(IQueryable<ActivityReport> query, int teamId)
         {
             if (teamId <= 0)
             {
@@ -57,7 +54,7 @@ namespace ActivityTrackerAPI.Repository
             return query.Where(reportRow => reportRow.TeamId == teamId);
         }
 
-        private IQueryable<PtoRequestReport> ApplyDateRangeFilter(IQueryable<PtoRequestReport> query, Dictionary<string, DateTime> dateParameters)
+        private IQueryable<ActivityReport> ApplyDateRangeFilter(IQueryable<ActivityReport> query, Dictionary<string, DateTime> dateParameters)
         {
             bool isDateParameterUsed = dateParameters.ContainsKey(Parameters.TO_REQUEST_REPORT_INITAL_DATE_PARAMETER) &&
                 dateParameters.ContainsKey(Parameters.TO_REQUEST_REPORT_FINAL_DATE_PARAMETER);

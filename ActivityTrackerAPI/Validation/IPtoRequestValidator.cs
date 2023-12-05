@@ -12,7 +12,7 @@ public interface IPtoRequestValidator
     Task<bool> IsGetActionAllowed(int employeeId);
     Task<bool> IsPtoRequestIdValid(int ptoRequestId);
     bool IsPtoRequestStatusIdValid(int ptoRequestStatusId);
-    bool IsDateCollisionExist(DateTime startedDate, DateTime finishedDate, int employeeId);
+    bool IsDateCollisionExist(DateTime startedDate, DateTime finishedDate, int employeeId, int ptoRequestId);
     Task<bool> isPtoRequestProcessValid(PtoRequest ptoRequest, int ptoRequestId, int employeeId);
     Task<bool> isPtoRequestProcessAllowed(int ptoRequestId, int employeeId);
 }

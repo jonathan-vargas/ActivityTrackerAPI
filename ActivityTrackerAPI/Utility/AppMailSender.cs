@@ -5,9 +5,9 @@ using Humanizer;
 
 namespace ActivityTrackerAPI.Utility;
 
-public static class AppMailSender
+public class AppMailSender: IAppMailSender
 {
-    public static async void SendEmail(EmailConfiguration emailConfiguration, EmailContent email, ILogger<PtoRequest> logger)
+    public async void SendEmail(EmailConfiguration emailConfiguration, EmailContent email, ILogger<PtoRequest> logger)
     {
         if (emailConfiguration == null)
         {
@@ -20,30 +20,31 @@ public static class AppMailSender
             logger.LogError("EmailContent object is null");
             return;
         }
-
+        SmtpClient smtpClient = new SmtpClient(emailConfiguration.SmtpServer, emailConfiguration.SmtpPort);
         try
         {
-            using (SmtpClient smtpClient = new SmtpClient(emailConfiguration.SmtpServer, emailConfiguration.SmtpPort))
+            smtpClient.Credentials = new NetworkCredential(emailConfiguration.SmtpUsername, emailConfiguration.SmtpPassword);
+            smtpClient.EnableSsl = true;
+
+            MailMessage mailMessage = new()
             {
-                smtpClient.Credentials = new NetworkCredential(emailConfiguration.SmtpUsername, emailConfiguration.SmtpPassword);
-                smtpClient.EnableSsl = true;
+                From = new MailAddress(email.From),
+                Subject = email.Subject,
+                Body = email.Body,
+                IsBodyHtml = true,
 
-                MailMessage mailMessage = new()
-                {
-                    From = new MailAddress(email.From),
-                    Subject = email.Subject,
-                    Body = email.Body,
-                    IsBodyHtml = true,
-                    
-                };
+            };
 
-                mailMessage.To.Add(email.To);
-                await smtpClient.SendMailAsync(mailMessage);
-            }
+            mailMessage.To.Add(email.To);
+            await smtpClient.SendMailAsync(mailMessage);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to send email with the following EmailConfiguration: "+emailConfiguration.ToString());            
+            logger.LogError(ex, $"Failed to send email with the following EmailConfiguration: {emailConfiguration.SmtpServer}, {emailConfiguration.SmtpPort}, {emailConfiguration.SmtpUsername}");            
+        }
+        finally 
+        { 
+            smtpClient.Dispose(); 
         }
     }
 }
