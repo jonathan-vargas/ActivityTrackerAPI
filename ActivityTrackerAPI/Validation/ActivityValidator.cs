@@ -35,7 +35,7 @@ public class ActivityValidator : IActivityValidator
 
     public bool IsActivityUpdateValid(Activity activity, int employeeId)
     {
-        if (!IsActivityPropertiesValid(activity, isIncludeIdCheck: true) || activity.EmployeeId != employeeId)
+        if (!IsActivityPropertiesValid(activity, isIncludeIdCheck: true))
         {
             return false;
         }
